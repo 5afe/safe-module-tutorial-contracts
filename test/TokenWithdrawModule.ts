@@ -16,7 +16,7 @@ describe("Example module tests", async function () {
   let chainId: bigint;
 
   // Setup signers and deploy contracts before running tests
-  beforeEach(async () => {
+  before(async () => {
     [deployer, alice, bob, charlie] = await ethers.getSigners();
 
     chainId = (await ethers.provider.getNetwork()).chainId;
