@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
 import { Signer, ZeroAddress } from "ethers";
-import { Safe__factory, TestToken, TokenWithdrawModule } from "../typechain-types";
+import { Safe, Safe__factory, SafeProxyFactory, TestToken, TokenWithdrawModule } from "../typechain-types";
 import { execTransaction, getDigest } from "./utils/utils";
 
 describe("Example module tests", async function () {
@@ -9,33 +9,31 @@ describe("Example module tests", async function () {
   let alice: Signer;
   let bob: Signer;
   let charlie: Signer;
-  let masterCopy: any;
-  let proxyFactory: any;
+  let masterCopy: Safe;
+  let proxyFactory: SafeProxyFactory;
   let token: TestToken;
   let safeFactory: Safe__factory;
   let chainId: bigint;
 
   // Setup signers and deploy contracts before running tests
-  before(async () => {
+  beforeEach(async () => {
     [deployer, alice, bob, charlie] = await ethers.getSigners();
 
     chainId = (await ethers.provider.getNetwork()).chainId;
     safeFactory = await ethers.getContractFactory("Safe", deployer);
     masterCopy = await safeFactory.deploy();
 
+    // Deploy a new token contract before each test
+    token = await (
+      await ethers.getContractFactory("TestToken", deployer)
+    ).deploy("test", "T");
+
     proxyFactory = await (
       await ethers.getContractFactory("SafeProxyFactory", deployer)
     ).deploy();
   });
 
-  // Deploy a new token contract before each test
-  beforeEach(async () => {
-    token = await (
-      await ethers.getContractFactory("TestToken", deployer)
-    ).deploy("test", "T");
-  });
-
-  // Helper function to setup contracts
+  // Setup contracts: Deploy a new token contract, create a new Safe, deploy the TokenWithdrawModule contract, and nable the module in the Safe.
   const setupContracts = async (
     walletOwners: Signer[],
     threshold: number
@@ -98,8 +96,7 @@ describe("Example module tests", async function () {
       safe.target,
       0,
       enableModuleData,
-      0,
-      "enable module"
+      0
     );
 
     // Verify that the module is enabled

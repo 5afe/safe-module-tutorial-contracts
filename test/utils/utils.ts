@@ -93,7 +93,6 @@ function getDomainSeparator(
  * @param value - The value to send with the transaction.
  * @param data - The data to send with the transaction.
  * @param operation - The operation type (0 for call, 1 for delegate call).
- * @param message - A message describing the transaction.
  */
 const execTransaction = async function (
   wallets: Signer[],
@@ -102,7 +101,6 @@ const execTransaction = async function (
   value: BigNumberish,
   data: string,
   operation: number,
-  message: string
 ): Promise<void> {
   // Get the current nonce of the Safe contract
   const nonce = await safe.nonce();
