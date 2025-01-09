@@ -15,8 +15,8 @@ describe("Example module tests", async function () {
   let token: TestToken;
   let safeFactory: Safe__factory;
   let chainId: bigint;
-  const ADDRESS_0 = "0x0000000000000000000000000000000000000000";
 
+  // Setup signers and deploy contracts before running tests
   before(async () => {
     [deployer, alice, bob, charlie] = await ethers.getSigners();
 
@@ -29,12 +29,14 @@ describe("Example module tests", async function () {
     ).deploy();
   });
 
+  // Deploy a new token contract before each test
   beforeEach(async () => {
     token = await (
       await ethers.getContractFactory("TestToken", deployer)
     ).deploy("test", "T");
   });
 
+  // Helper function to setup contracts
   const setupContracts = async (
     walletOwners: Signer[],
     threshold: number
@@ -46,21 +48,22 @@ describe("Example module tests", async function () {
     const gnosisSafeData = masterCopy.interface.encodeFunctionData("setup", [
       ownerAddresses,
       threshold,
-      ADDRESS_0,
+      ZeroAddress,
       "0x",
-      ADDRESS_0,
-      ADDRESS_0,
+      ZeroAddress,
+      ZeroAddress,
       0,
-      ADDRESS_0,
+      ZeroAddress,
     ]);
 
-
+    // Read the safe address by executing the static call to createProxyWithNonce function
     const safeAddress = await proxyFactory.createProxyWithNonce.staticCall(
       await masterCopy.getAddress(),
       gnosisSafeData,
       0n
     );
 
+    // Create the proxy with nonce
     await proxyFactory.createProxyWithNonce(
       await masterCopy.getAddress(),
       gnosisSafeData,
@@ -71,21 +74,23 @@ describe("Example module tests", async function () {
       throw new Error("Safe address not found");
     }
 
+    // Deploy the TokenWithdrawModule contract
     const exampleModule = await (
       await ethers.getContractFactory("TokenWithdrawModule", deployer)
     ).deploy(token.target, safeAddress);
 
+    // Mint tokens to the safe address
     await token
       .connect(deployer)
       .mint(safeAddress, BigInt(10) ** BigInt(18) * BigInt(100000));
 
     const safe = await ethers.getContractAt("Safe", safeAddress);
 
+    // Enable the module in the safe
     const enableModuleData = masterCopy.interface.encodeFunctionData(
       "enableModule",
       [exampleModule.target]
     );
-
 
     const safeTxEx: SafeTransaction = {
       safeTxGas: "0",
@@ -100,6 +105,7 @@ describe("Example module tests", async function () {
       operation: 0
     };
 
+    // Execute the transaction to enable the module
     await execTransaction(
       walletOwners.slice(0, threshold),
       safe,
@@ -109,13 +115,15 @@ describe("Example module tests", async function () {
       0,
       "enable module"
     );
-    
+
+    // Verify that the module is enabled
     expect(await safe.isModuleEnabled.staticCall(exampleModule.target)).to.be
       .true;
 
     return { exampleModule };
   };
 
+  // Test case to verify token transfer to bob
   it("Should successfully transfer tokens to bob", async function () {
     const wallets = [alice];
     const { exampleModule } = await setupContracts(wallets, 1);
@@ -126,6 +134,7 @@ describe("Example module tests", async function () {
     const deadline = 100000000000000n;
     const nonce = await exampleModule.nonces(await bob.getAddress());
 
+    // Generate the digest for the transaction
     const digest = getDigest(
       "TokenWithdrawModule",
       await exampleModule.getAddress(),
@@ -138,6 +147,7 @@ describe("Example module tests", async function () {
 
     const bytesDataHash = ethers.getBytes(digest);
 
+    // Sign the digest with each wallet owner
     for (let i = 0; i < wallets.length; i++) {
       const flatSig = (await wallets[i].signMessage(bytesDataHash))
         .replace(/1b$/, "1f")
@@ -145,16 +155,19 @@ describe("Example module tests", async function () {
       signatureBytes += flatSig.slice(2);
     }
 
+    // Attempt to transfer tokens with an invalid signer (should fail)
     await expect(
       exampleModule
         .connect(charlie)
         .tokenTransfer(amount, await charlie.getAddress(), deadline, signatureBytes)
     ).to.be.revertedWith("GS026");
 
+    // Transfer tokens with a valid signer
     await exampleModule
       .connect(bob)
       .tokenTransfer(amount, await bob.getAddress(), deadline, signatureBytes);
 
+    // Verify the token balance of bob
     const balanceBob = await token.balanceOf.staticCall(await bob.getAddress());
     expect(balanceBob).to.be.equal(amount);
   });
