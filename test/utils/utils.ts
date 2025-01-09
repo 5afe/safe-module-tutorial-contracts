@@ -1,15 +1,27 @@
 import { ethers } from "hardhat";
-import { Signer, Contract, AddressLike, BigNumberish } from "ethers";
+import { Signer, AddressLike, BigNumberish, ZeroAddress } from "ethers";
 import { Safe } from "../../typechain-types";
 
 const { keccak256, toUtf8Bytes } = ethers;
 
+// Define the type hash for the permit function
 const PERMIT_TYPEHASH = keccak256(
   toUtf8Bytes(
     "TokenTransfer(uint256 amount, address _beneficiary, uint256 nonce, uint256 deadline)"
   )
 );
 
+/**
+ * Generates the EIP-712 digest for a token transfer.
+ * @param name - The name of the contract.
+ * @param address - The address of the contract.
+ * @param chainId - The chain ID of the network.
+ * @param amount - The amount of tokens to transfer.
+ * @param user - The address of the beneficiary.
+ * @param nonce - The nonce for the transaction.
+ * @param deadline - The deadline for the transaction.
+ * @returns The EIP-712 digest.
+ */
 function getDigest(
   name: string,
   address: string,
@@ -19,9 +31,11 @@ function getDigest(
   nonce: BigInt,
   deadline: BigInt
 ): string {
+  // Get the domain separator for the contract
   const DOMAIN_SEPARATOR = getDomainSeparator(name, address, chainId);
   const defaultAbiCoder = ethers.AbiCoder.defaultAbiCoder();
 
+  // Generate the EIP-712 digest
   return keccak256(
     ethers.solidityPacked(
       ["bytes1", "bytes1", "bytes32", "bytes32"],
@@ -40,7 +54,13 @@ function getDigest(
   );
 }
 
-// Gets the EIP712 domain separator
+/**
+ * Gets the EIP-712 domain separator.
+ * @param name - The name of the contract.
+ * @param contractAddress - The address of the contract.
+ * @param chainId - The chain ID of the network.
+ * @returns The EIP-712 domain separator.
+ */
 function getDomainSeparator(
   name: string,
   contractAddress: string,
@@ -65,6 +85,16 @@ function getDomainSeparator(
   );
 }
 
+/**
+ * Executes a transaction on the Safe contract.
+ * @param wallets - The signers of the transaction.
+ * @param safe - The Safe contract instance.
+ * @param to - The address to send the transaction to.
+ * @param value - The value to send with the transaction.
+ * @param data - The data to send with the transaction.
+ * @param operation - The operation type (0 for call, 1 for delegate call).
+ * @param message - A message describing the transaction.
+ */
 const execTransaction = async function (
   wallets: Signer[],
   safe: Safe,
@@ -74,9 +104,10 @@ const execTransaction = async function (
   operation: number,
   message: string
 ): Promise<void> {
-  const ADDRESS_0 = "0x0000000000000000000000000000000000000000";
+  // Get the current nonce of the Safe contract
   const nonce = await safe.nonce();
 
+  // Get the transaction hash for the Safe transaction
   const transactionHash = await safe.getTransactionHash(
     to,
     value,
@@ -85,20 +116,24 @@ const execTransaction = async function (
     0,
     0,
     0,
-    ADDRESS_0,
-    ADDRESS_0,
+    ZeroAddress,
+    ZeroAddress,
     nonce
   );
+
   let signatureBytes = "0x";
   const bytesDataHash = ethers.getBytes(transactionHash);
 
+  // Get the addresses of the signers
   const addresses = await Promise.all(wallets.map(wallet => wallet.getAddress()));
+  // Sort the signers by their addresses
   const sorted = wallets.sort((a, b) => {
     const addressA = addresses[wallets.indexOf(a)];
     const addressB = addresses[wallets.indexOf(b)];
     return addressA.localeCompare(addressB, "en", { sensitivity: "base" });
   });
 
+  // Sign the transaction hash with each signer
   for (let i = 0; i < sorted.length; i++) {
     const flatSig = (await sorted[i].signMessage(bytesDataHash))
       .replace(/1b$/, "1f")
@@ -106,6 +141,7 @@ const execTransaction = async function (
     signatureBytes += flatSig.slice(2);
   }
 
+  // Execute the transaction on the Safe contract
   await safe.execTransaction(
     to,
     value,
@@ -114,8 +150,8 @@ const execTransaction = async function (
     0,
     0,
     0,
-    ADDRESS_0,
-    ADDRESS_0,
+    ZeroAddress,
+    ZeroAddress,
     signatureBytes
   );
 };

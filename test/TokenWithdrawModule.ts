@@ -2,7 +2,6 @@ import { ethers } from "hardhat";
 import { expect } from "chai";
 import { Signer, ZeroAddress } from "ethers";
 import { Safe__factory, TestToken, TokenWithdrawModule } from "../typechain-types";
-import { SafeTransaction } from "@safe-global/safe-contracts";
 import { execTransaction, getDigest } from "./utils/utils";
 
 describe("Example module tests", async function () {
@@ -45,7 +44,7 @@ describe("Example module tests", async function () {
       walletOwners.map(async (walletOwner) => await walletOwner.getAddress())
     );
 
-    const gnosisSafeData = masterCopy.interface.encodeFunctionData("setup", [
+    const safeData = masterCopy.interface.encodeFunctionData("setup", [
       ownerAddresses,
       threshold,
       ZeroAddress,
@@ -59,14 +58,14 @@ describe("Example module tests", async function () {
     // Read the safe address by executing the static call to createProxyWithNonce function
     const safeAddress = await proxyFactory.createProxyWithNonce.staticCall(
       await masterCopy.getAddress(),
-      gnosisSafeData,
+      safeData,
       0n
     );
 
     // Create the proxy with nonce
     await proxyFactory.createProxyWithNonce(
       await masterCopy.getAddress(),
-      gnosisSafeData,
+      safeData,
       0n
     );
 
@@ -91,19 +90,6 @@ describe("Example module tests", async function () {
       "enableModule",
       [exampleModule.target]
     );
-
-    const safeTxEx: SafeTransaction = {
-      safeTxGas: "0",
-      baseGas: "0",
-      gasPrice: "0",
-      gasToken: ZeroAddress,
-      refundReceiver: ZeroAddress,
-      nonce: "0",
-      to: await safe.getAddress(),
-      value: 0,
-      data: enableModuleData,
-      operation: 0
-    };
 
     // Execute the transaction to enable the module
     await execTransaction(
