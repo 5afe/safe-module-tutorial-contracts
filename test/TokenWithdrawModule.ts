@@ -1,8 +1,8 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
-import { Signer, ZeroAddress } from "ethers";
+import { Signer, TypedDataDomain, ZeroAddress } from "ethers";
 import { Safe, Safe__factory, SafeProxyFactory, TestToken, TokenWithdrawModule } from "../typechain-types";
-import { execTransaction, getDigest } from "./utils/utils";
+import { execTransaction } from "./utils/utils";
 
 describe("Example module tests", async function () {
   let deployer: Signer;
@@ -33,7 +33,7 @@ describe("Example module tests", async function () {
     ).deploy();
   });
 
-  // Setup contracts: Deploy a new token contract, create a new Safe, deploy the TokenWithdrawModule contract, and nable the module in the Safe.
+  // Setup contracts: Deploy a new token contract, create a new Safe, deploy the TokenWithdrawModule contract, and enable the module in the Safe.
   const setupContracts = async (
     walletOwners: Signer[],
     threshold: number
@@ -112,24 +112,36 @@ describe("Example module tests", async function () {
     const { exampleModule } = await setupContracts(wallets, 1);
 
     const amount = BigInt(10) ** BigInt(18) * BigInt(10);
-
-    let signatureBytes = "0x";
     const deadline = 100000000000000n;
     const nonce = await exampleModule.nonces(await bob.getAddress());
 
-    // Generate the digest for the transaction
-    const digest = getDigest(
-      "TokenWithdrawModule",
-      await exampleModule.getAddress(),
-      chainId,
-      amount,
-      await bob.getAddress(),
-      nonce,
-      deadline
-    );
+    // Define the EIP-712 domain and types
+    const domain: TypedDataDomain = {
+      name: "TokenWithdrawModule",
+      version: "1",
+      chainId: chainId,
+      verifyingContract: await exampleModule.getAddress(),
+    };
 
+    const types = {
+      TokenWithdrawModule: [
+        { name: "amount", type: "uint256" },
+        { name: "_beneficiary", type: "address" },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+      ],
+    };
+
+    const value = {
+      amount: amount,
+      _beneficiary: await bob.getAddress(),
+      nonce: nonce,
+      deadline: deadline,
+    };
+
+    const digest = ethers.TypedDataEncoder.hash(domain, types, value);
     const bytesDataHash = ethers.getBytes(digest);
-
+    let signatureBytes = "0x";
     // Sign the digest with each wallet owner
     for (let i = 0; i < wallets.length; i++) {
       const flatSig = (await wallets[i].signMessage(bytesDataHash))
