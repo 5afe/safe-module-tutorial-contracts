@@ -166,5 +166,4 @@ describe("Example module tests", async function () {
     const balanceBob = await token.balanceOf.staticCall(await bob.getAddress());
     expect(balanceBob).to.be.equal(amount);
   });
-
 });
