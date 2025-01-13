@@ -82,11 +82,6 @@ contract TokenWithdrawModule {
 
     function getDomainSeparator() private view returns (bytes32) {
 
-        uint256 chainId;
-        assembly {
-            chainId := chainid()
-        }
-
         return keccak256(
             abi.encode(
                 keccak256(
@@ -94,7 +89,7 @@ contract TokenWithdrawModule {
                 ),
                 keccak256(bytes("TokenWithdrawModule")),
                 keccak256(bytes("1")),
-                chainId,
+                block.chainid,
                 address(this)
             )
         );
