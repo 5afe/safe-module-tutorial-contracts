@@ -10,7 +10,7 @@ import "@safe-global/safe-contracts/contracts/Safe.sol";
 contract TokenWithdrawModule {
     bytes32 public immutable PERMIT_TYPEHASH =
         keccak256(
-            "TokenTransfer(uint256 amount, address _beneficiary, uint256 nonce, uint256 deadline)"
+            "TokenWithdrawModule(uint256 amount, address _beneficiary, uint256 nonce, uint256 deadline)"
         );
     address public immutable safeAddress;
     address public immutable tokenAddress;

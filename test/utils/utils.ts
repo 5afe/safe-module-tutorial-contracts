@@ -7,7 +7,7 @@ const { keccak256, toUtf8Bytes } = ethers;
 // Define the type hash for the permit function
 const PERMIT_TYPEHASH = keccak256(
   toUtf8Bytes(
-    "TokenTransfer(uint256 amount, address _beneficiary, uint256 nonce, uint256 deadline)"
+    "TokenWithdrawModule(uint256 amount, address _beneficiary, uint256 nonce, uint256 deadline)"
   )
 );
 
