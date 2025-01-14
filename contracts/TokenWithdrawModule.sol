@@ -28,6 +28,25 @@ contract TokenWithdrawModule {
     }
 
     /**
+     * @dev Generates the EIP-712 domain separator for the contract.
+     *
+     * @return The EIP-712 domain separator.
+     */
+    function getDomainSeparator() private view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                keccak256(
+                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                ),
+                keccak256(bytes("TokenWithdrawModule")),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(this)
+            )
+        );
+    }
+
+    /**
      * @dev Transfers a specified amount of tokens to a beneficiary.
      *
      * @param _amount amount of tokens to be transferred
@@ -77,21 +96,6 @@ contract TokenWithdrawModule {
                 Enum.Operation.Call
             ),
             "Could not execute token transfer"
-        );
-    }
-
-    function getDomainSeparator() private view returns (bytes32) {
-
-        return keccak256(
-            abi.encode(
-                keccak256(
-                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                ),
-                keccak256(bytes("TokenWithdrawModule")),
-                keccak256(bytes("1")),
-                block.chainid,
-                address(this)
-            )
         );
     }
 }
